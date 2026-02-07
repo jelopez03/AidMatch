@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git -C \"c:\\\\Users\\\\Juan\\\\Downloads\\\\aidmatch\" remote -v)"
-    ]
-  }
-}
