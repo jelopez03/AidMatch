@@ -4,14 +4,14 @@ import { UserProfile, AnalysisResult, ProgramEligibility } from "../types";
 const SYSTEM_INSTRUCTION = `You are a financial assistance expert. Analyze user profiles and return ONLY valid JSON matching the specified schema. You are empathetic but objective in your assessment.`;
 
 const AID_PROGRAMS = [
-  { id: "snap", name: "Supplemental Nutrition Assistance Program (SNAP)", category: "Food" },
-  { id: "wic", name: "Women, Infants, and Children (WIC)", category: "Food/Health" },
-  { id: "liheap", name: "Low Income Home Energy Assistance Program (LIHEAP)", category: "Utilities" },
-  { id: "hcv", name: "Housing Choice Voucher Program (Section 8)", category: "Housing" },
-  { id: "tanf", name: "Temporary Assistance for Needy Families (TANF)", category: "Cash Assistance" },
-  { id: "eitc", name: "Earned Income Tax Credit (EITC)", category: "Tax Credit" },
-  { id: "ctc", name: "Child Tax Credit", category: "Tax Credit" },
-  { id: "medicaid", name: "Medicaid / CHIP", category: "Healthcare" }
+  { id: "snap", name: "Supplemental Nutrition Assistance Program (SNAP)", category: "Food", url: "https://www.fns.usda.gov/snap/supplemental-nutrition-assistance-program" },
+  { id: "wic", name: "Women, Infants, and Children (WIC)", category: "Food/Health", url: "https://www.fns.usda.gov/wic" },
+  { id: "liheap", name: "Low Income Home Energy Assistance Program (LIHEAP)", category: "Utilities", url: "https://www.acf.hhs.gov/ocs/low-income-home-energy-assistance-program-liheap" },
+  { id: "hcv", name: "Housing Choice Voucher Program (Section 8)", category: "Housing", url: "https://www.hud.gov/program_offices/public_indian_housing/programs/hcv/about" },
+  { id: "tanf", name: "Temporary Assistance for Needy Families (TANF)", category: "Cash Assistance", url: "https://www.acf.hhs.gov/ofa/programs/tanf" },
+  { id: "eitc", name: "Earned Income Tax Credit (EITC)", category: "Tax Credit", url: "https://www.irs.gov/credits-deductions/individuals/earned-income-tax-credit-eitc" },
+  { id: "ctc", name: "Child Tax Credit", category: "Tax Credit", url: "https://www.irs.gov/credits-deductions/individuals/child-tax-credit" },
+  { id: "medicaid", name: "Medicaid / CHIP", category: "Healthcare", url: "https://www.medicaid.gov/" }
 ];
 
 const cleanJsonText = (text: string): string => {
@@ -25,7 +25,7 @@ export const analyzeFinancialProfile = async (profile: UserProfile): Promise<Ana
   if (!apiKey) {
     throw new Error("API_KEY environment variable is missing. Please set it in your environment.");
   }
-  
+
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
@@ -58,8 +58,9 @@ export const analyzeFinancialProfile = async (profile: UserProfile): Promise<Ana
   `;
 
   try {
+    // Switch to gemini-3-flash-preview for higher rate limits and faster response
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -70,28 +71,28 @@ export const analyzeFinancialProfile = async (profile: UserProfile): Promise<Ana
             poverty_level_percent: { type: Type.NUMBER },
             poverty_classification: { type: Type.STRING },
             monthly_deficit: { type: Type.NUMBER },
-            primary_hardships: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING } 
+            primary_hardships: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
             },
             household_size: { type: Type.NUMBER },
             dependents: { type: Type.NUMBER },
-            family_vulnerabilities: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING } 
+            family_vulnerabilities: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
             },
             is_single_parent: { type: Type.BOOLEAN },
             working_status: { type: Type.STRING },
-            estimated_eligibility_categories: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING } 
+            estimated_eligibility_categories: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
             },
           },
           required: [
-            "poverty_level_percent", 
-            "poverty_classification", 
-            "monthly_deficit", 
-            "primary_hardships", 
+            "poverty_level_percent",
+            "poverty_classification",
+            "monthly_deficit",
+            "primary_hardships",
             "estimated_eligibility_categories"
           ]
         }
@@ -122,7 +123,7 @@ export const checkProgramEligibility = async (profile: UserProfile, analysis: An
   // Base $15,060 for 1 person + $5,380 for each additional person
   const fpl = 15060 + (profile.householdSize - 1) * 5380;
   const fplMonthly = Math.round(fpl / 12);
-  
+
   const prompt = `
   SYSTEM CONTEXT:
   You are a financial assistance eligibility expert. Match this user profile to aid programs.
@@ -149,7 +150,8 @@ export const checkProgramEligibility = async (profile: UserProfile, analysis: An
       "estimated_monthly_benefit": <number or null>,
       "estimated_annual_benefit": <number or null>,
       "processing_days": <number>,
-      "approval_likelihood_percent": <number 0-100>
+      "approval_likelihood_percent": <number 0-100>,
+      "official_website_url": "<string URL provided in database>"
     }
   ]
 
@@ -173,8 +175,9 @@ export const checkProgramEligibility = async (profile: UserProfile, analysis: An
   `;
 
   try {
+    // Switch to gemini-3-flash-preview for higher rate limits and faster response
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -194,6 +197,7 @@ export const checkProgramEligibility = async (profile: UserProfile, analysis: An
               estimated_annual_benefit: { type: Type.NUMBER, nullable: true },
               processing_days: { type: Type.NUMBER },
               approval_likelihood_percent: { type: Type.NUMBER },
+              official_website_url: { type: Type.STRING, nullable: true }
             },
             required: ["program_id", "program_name", "eligible", "reason_eligible", "approval_likelihood_percent"]
           }
