@@ -20,6 +20,30 @@ const cleanJsonText = (text: string): string => {
   return text.replace(/```json/g, '').replace(/```/g, '').trim();
 };
 
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Wrapper to retry requests if we hit a rate limit (429)
+async function generateWithRetry(ai: GoogleGenAI, params: any, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await ai.models.generateContent(params);
+    } catch (error: any) {
+      // Check for 429 (Too Many Requests) or 503 (Service Unavailable)
+      const isRateLimit = error?.status === 429 || error?.code === 429 || error?.message?.includes('429');
+
+      if (isRateLimit && i < retries - 1) {
+        // Exponential backoff: Wait 2s, 4s, 8s...
+        const waitTime = 2000 * Math.pow(2, i);
+        console.warn(`Rate limit hit. Retrying in ${waitTime}ms... (Attempt ${i + 1}/${retries})`);
+        await delay(waitTime);
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 export const analyzeFinancialProfile = async (profile: UserProfile): Promise<AnalysisResult> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
@@ -58,8 +82,8 @@ export const analyzeFinancialProfile = async (profile: UserProfile): Promise<Ana
   `;
 
   try {
-    // Switch to gemini-3-flash-preview for higher rate limits and faster response
-    const response = await ai.models.generateContent({
+    // USING GEMINI-3-FLASH-PREVIEW FOR HIGHER RATE LIMITS (15 RPM vs 2 RPM for Pro)
+    const response = await generateWithRetry(ai, {
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -99,7 +123,7 @@ export const analyzeFinancialProfile = async (profile: UserProfile): Promise<Ana
       }
     });
 
-    const text = cleanJsonText(response.text || "");
+    const text = cleanJsonText(response?.text || "");
     if (!text) {
       throw new Error("Empty response from AI");
     }
@@ -175,8 +199,8 @@ export const checkProgramEligibility = async (profile: UserProfile, analysis: An
   `;
 
   try {
-    // Switch to gemini-3-flash-preview for higher rate limits and faster response
-    const response = await ai.models.generateContent({
+    // USING GEMINI-3-FLASH-PREVIEW FOR HIGHER RATE LIMITS
+    const response = await generateWithRetry(ai, {
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -205,7 +229,7 @@ export const checkProgramEligibility = async (profile: UserProfile, analysis: An
       }
     });
 
-    const text = cleanJsonText(response.text || "");
+    const text = cleanJsonText(response?.text || "");
     if (!text) {
       throw new Error("Empty response from AI");
     }
