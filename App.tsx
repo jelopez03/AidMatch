@@ -4,15 +4,15 @@ import FinancialForm from './components/FinancialForm';
 import AnalysisDashboard from './components/AnalysisDashboard';
 import ApplicationTracker from './components/ApplicationTracker';
 import { analyzeFinancialProfile, checkProgramEligibility } from './services/geminiService';
-import { 
-  saveAssessment, 
-  fetchApplications, 
-  createApplication, 
-  fetchNotifications, 
+import {
+  saveAssessment,
+  fetchApplications,
+  createApplication,
+  fetchNotifications,
   createNotification,
-  markAllNotificationsRead 
+  markAllNotificationsRead
 } from './services/dbService';
-import { Database, LayoutDashboard, Calculator, FileText } from 'lucide-react';
+import { Database, LayoutDashboard, Calculator, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { isSupabaseConfigured } from './services/supabaseClient';
 import { Logo } from './components/Logo';
 
@@ -172,12 +172,12 @@ const App: React.FC = () => {
     try {
       // Step 1: Basic Analysis
       const baseResult = await analyzeFinancialProfile(data);
-      
+
       setLoadingStage('Matching with assistance programs...');
-      
+
       // Step 2: Detailed Program Eligibility Check
       const eligibilityResult = await checkProgramEligibility(data, baseResult);
-      
+
       // Combine results
       const finalResult: AnalysisResult = {
         ...baseResult,
@@ -240,7 +240,7 @@ const App: React.FC = () => {
 
   const handleMarkAllRead = async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    
+
     if (isSupabaseConfigured()) {
       await markAllNotificationsRead();
     }
@@ -249,45 +249,47 @@ const App: React.FC = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       {/* Navigation Bar */}
-      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div 
-              className="flex items-center gap-3 cursor-pointer"
+            <div
+              className="flex items-center gap-3 cursor-pointer group"
               onClick={() => setCurrentView('assessment')}
             >
-              <Logo className="h-10 w-10" />
-              <span className="text-2xl font-bold text-slate-800 tracking-tight">AidMatch</span>
+              <div className="group-hover:scale-110 transition-transform duration-200">
+                <Logo className="h-9 w-9" />
+              </div>
+              <span className="text-xl font-bold text-slate-900 tracking-tight">AidMatch</span>
             </div>
-            
+
             <div className="flex items-center gap-1 sm:gap-4">
               {/* Desktop Nav Links */}
-              <div className="hidden sm:flex items-center bg-slate-100 rounded-lg p-1 mr-2">
-                <button 
+              <div className="hidden sm:flex items-center bg-slate-100/50 p-1 rounded-xl mr-2 border border-slate-200/50">
+                <button
                   onClick={() => setCurrentView('assessment')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
-                    currentView === 'assessment' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-900'
+                  className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
+                    currentView === 'assessment'
+                      ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
                   {analysisResult ? <FileText size={16} /> : <Calculator size={16} />}
-                  {analysisResult ? 'Current Assessment' : 'New Assessment'}
+                  {analysisResult ? 'Report' : 'Assess'}
                 </button>
-                <button 
+                <button
                   onClick={() => setCurrentView('tracker')}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${
-                    currentView === 'tracker' 
-                      ? 'bg-white text-blue-600 shadow-sm' 
-                      : 'text-slate-600 hover:text-slate-900'
+                  className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
+                    currentView === 'tracker'
+                      ? 'bg-white text-blue-600 shadow-sm border border-slate-200/50'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
                   }`}
                 >
                   <LayoutDashboard size={16} />
-                  My Applications
+                  My Apps
                   {unreadCount > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 rounded-full">
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
                       {unreadCount}
                     </span>
                   )}
@@ -295,13 +297,13 @@ const App: React.FC = () => {
               </div>
 
               {isDbConnected && (
-                <div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-100">
+                <div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100/50">
                   <Database size={12} />
-                  <span>Cloud Connected</span>
+                  <span>Sync On</span>
                 </div>
               )}
-              
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-200 cursor-pointer">
+
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-bold text-sm border border-white shadow-sm ring-1 ring-slate-100 cursor-pointer hover:ring-blue-200 transition-all">
                 JD
               </div>
             </div>
@@ -313,7 +315,7 @@ const App: React.FC = () => {
       <main className="flex-grow py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {currentView === 'tracker' ? (
-            <ApplicationTracker 
+            <ApplicationTracker
               applications={applications}
               notifications={notifications}
               onMarkAllRead={handleMarkAllRead}
@@ -322,44 +324,52 @@ const App: React.FC = () => {
           ) : (
             <>
               {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {error}
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 animate-in fade-in slide-in-from-top-2 shadow-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-medium">{error}</span>
                 </div>
               )}
 
               {!analysisResult ? (
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center animate-in fade-in duration-700">
                   <div className="text-center mb-10 max-w-2xl">
-                    <h1 className="text-4xl font-extrabold text-slate-900 mb-4 leading-tight">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wider mb-6 border border-blue-100">
+                        AI-Powered Assistance Finder
+                    </div>
+                    <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-6 leading-tight tracking-tight">
                       Check Your Eligibility & <br className="hidden sm:block" />
-                      <span className="text-blue-600">Discover Financial Assistance</span>
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Discover Financial Aid</span>
                     </h1>
-                    <p className="text-lg text-slate-600">
-                      Discover and apply for financial assistance you're eligible for—automatically.
+                    <p className="text-lg text-slate-600 leading-relaxed max-w-lg mx-auto">
+                      Our advanced AI analyzes your profile against thousands of federal and state programs to find the help you qualify for instantly.
                     </p>
                   </div>
-                  <FinancialForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+                  <div className="w-full max-w-2xl transform transition-all hover:scale-[1.01] duration-500">
+                    <FinancialForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+                  </div>
                   {isLoading && loadingStage && (
-                     <div className="mt-4 text-slate-500 font-medium animate-pulse">{loadingStage}</div>
+                     <div className="mt-6 flex flex-col items-center gap-3">
+                        <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                        <span className="text-slate-500 font-medium animate-pulse">{loadingStage}</span>
+                     </div>
                   )}
                 </div>
               ) : (
                 <div className="space-y-4">
                   {saveStatus === 'saved' && (
                     <div className="flex justify-end animate-in fade-in duration-500">
-                       <span className="text-xs text-slate-400 flex items-center gap-1">
-                         <Database size={10} />
-                         Assessment saved to database
+                       <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1.5">
+                         <Database size={12} />
+                         Assessment saved to secure cloud
                        </span>
                     </div>
                   )}
-                  <AnalysisDashboard 
-                    result={analysisResult} 
-                    onReset={handleReset} 
+                  <AnalysisDashboard
+                    result={analysisResult}
+                    applications={applications}
+                    onReset={handleReset}
                     onApplicationSubmit={handleApplicationSubmit}
+                    onViewApplication={() => setCurrentView('tracker')}
                   />
                 </div>
               )}
@@ -370,9 +380,13 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 mt-auto">
-        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2 opacity-75 grayscale hover:grayscale-0 transition-all">
+            <Logo className="w-6 h-6" />
+            <span className="font-bold text-slate-700">AidMatch</span>
+          </div>
           <p className="text-center text-slate-400 text-sm">
-            © {new Date().getFullYear()} AidMatch. This tool provides estimates only and is not an official government determination.
+            © {new Date().getFullYear()} AidMatch. Estimates only. Not an official government agency.
           </p>
         </div>
       </footer>
